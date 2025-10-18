@@ -192,7 +192,6 @@ send_response 404 "text/plain" "Not Found"
 exit 0
 SERVEOF
 
-    sed -i "s|AUTH_PASSWORD=\"@Sinch9090\"|AUTH_PASSWORD=\"$AUTH_PASSWORD\"|g" "$SERVER_SCRIPT"
     sed -i "s|CODE_FILE=\"/home/ubuntu/simpleshare.code\"|CODE_FILE=\"$CODE_FILE\"|g" "$SERVER_SCRIPT"
     sed -i "s|SESSION_FILE=\"/home/ubuntu/simpleshare.sessions\"|SESSION_FILE=\"$SESSION_FILE\"|g" "$SERVER_SCRIPT"
     sed -i "s|SESSION_DURATION_SECONDS=1800|SESSION_DURATION_SECONDS=$SESSION_DURATION_SECONDS|g" "$SERVER_SCRIPT"
