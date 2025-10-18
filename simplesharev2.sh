@@ -83,7 +83,7 @@ generate_server() {
 # simpleshare_server.sh - Servidor HTTP (Executado pelo xinetd)
 # ⚠️  NÃO EXECUTE DIRETAMENTE - Este script é chamado pelo xinetd
 
-AUTH_PASSWORD="SuaSenha"
+    AUTH_PASSWORD="NovaSenha"  # Atualizando a senha para garantir limpeza total
 CODE_FILE="/home/ubuntu/simpleshare.code"
 SESSION_FILE="/home/ubuntu/simpleshare.sessions"
 SESSION_DURATION_SECONDS=1800
