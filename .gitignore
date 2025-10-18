@@ -1,0 +1,18 @@
+# Runtime and generated files
+simpleshare.code
+simpleshare.sessions
+simpleshare_server.sh
+*.log
+
+# OS and editor files
+.DS_Store
+*.swp
+*.swo
+*.tmp
+
+# Node_modules for any experiment
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]

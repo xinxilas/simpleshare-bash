@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/petite-vue@0.4.1/dist/petite-vue.iife.js"></script>
+    <title>Code Share!!!</title>
+    <style>
+        body { font-family: sans-serif; background-color: #1a1a1a; color: #f0f0f0; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+        textarea { width: 100%; height: 400px; padding: 10px; border: 1px solid #444; border-radius: 6px; font-family: monospace; font-size: 14px; resize: vertical; background-color: #2a2a2a; color: #f0f0f0; box-sizing: border-box; }
+        .progress-bar { width: 100%; height: 3px; background: #333; margin-top: 2px; border-radius: 2px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #0288d1, #4fc3f7); width: 0%; }
+        .progress-fill.animating {}
+        .status { margin-top: 10px; padding: 10px; border-radius: 6px; text-align: center; }
+        .saving { background-color: #0288d1; color: white; }
+        .message { background-color: #388e3c; color: white; }
+        .error { background-color: #d32f2f; color: white; }
+        .auth-prompt { background-color: #ff9800; color: #333; }
+    </style>
+</head>
+<body>
+    <h1>Code Share</h1>
+    <div v-scope="{ 
+        code: '', 
+        status: { saving: false, message: '', type: 'message' },
+        authenticated: false,
+        debounceSave: null,
+        progressWidth: 0,
+        progressAnimating: false,
+        async init() { 
+            this.debounceSave = this.debounce(this.save, 1500);
+            await this.checkAuth();
+            if (!this.authenticated) {
+                await this.authenticate();
+            } else {
+                await this.loadCode();
+            }
+        },
+        async checkAuth() {
+            try {
+                const response = await fetch('/code');
+                this.authenticated = response.ok;
+            } catch (error) {
+                this.authenticated = false;
+            }
+        },
+        debounce(func, wait) {
+            let timeout;
+            let interval;
+            const intervalTime = 10; // Atualiza a cada 10ms
+            const totalSteps = wait / intervalTime;
+            let currentStep = 0;
+
+            const startProgress = () => {
+                clearInterval(interval); // Garante que qualquer intervalo anterior seja parado
+                currentStep = 0;
+                this.progressWidth = 0;
+                this.progressAnimating = true; // Mantém a classe para o estilo visual
+
+                // Garante que a barra comece a se preencher imediatamente
+                this.progressWidth = 1; 
+
+                // Inicia o setInterval no próximo tick para garantir que o 
+                // valor inicial de 1% seja renderizado
+                setTimeout(() => {
+                    interval = setInterval(() => {
+                        currentStep++;
+                        if (currentStep <= totalSteps) {
+                            this.progressWidth = (currentStep / totalSteps) * 100;
+                        } else {
+                            // Limpa o intervalo após atingir 100%
+                            clearInterval(interval);
+                        }
+                    }, intervalTime);
+                }, 0);
+            };
+
+            const stopProgress = () => {
+                clearInterval(interval);
+                this.progressWidth = 0;
+                this.progressAnimating = false;
+            };
+
+            return (...args) => {
+                // 1. Reinicia a animação (clearInterval e setInterval)
+                startProgress();
+                
+                // 2. Reseta o temporizador de debounce
+                clearTimeout(timeout);
+
+                timeout = setTimeout(async () => {
+                    // 3. Executa a função principal
+                    await func.apply(this, args);
+                    // 4. Esconde a barra após salvar
+                    stopProgress();
+                }, wait);
+            };
+        },
+        async authenticate() {
+            while (!this.authenticated) {
+                const pass = prompt('Digite a senha para acessar:');
+                if (!pass) continue;
+                
+                try {
+                    const response = await fetch('/share', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-Auth-Pass': pass
+                        }
+                    });
+
+                    if (response.ok) {
+                        this.authenticated = true;
+                        this.status = { saving: false, message: 'Autenticado!', type: 'message' };
+                        setTimeout(() => { this.status.message = ''; }, 3000);
+                        await this.loadCode();
+                        break;
+                    }
+                } catch (error) {
+                    console.error('Auth error:', error);
+                }
+            }
+        },
+        async loadCode() {
+            try {
+                const response = await fetch('/code');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.code = data.code || '';
+                }
+            } catch (error) {
+                console.error('Load code error:', error);
+            }
+        },
+        async save() {
+            this.status = { saving: true, message: '', type: 'saving' };
+            try {
+                const response = await fetch('/share', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ code: this.code })
+                });
+
+                if (response.status === 401) { 
+                    this.authenticated = false;
+                    await this.authenticate();
+                    return;
+                }
+
+                if (!response.ok) throw new Error('Network response was not ok.');
+                this.status = { saving: false, message: 'Salvo com sucesso!', type: 'message' };
+            } catch (error) {
+                console.error('Save error:', error);
+                this.status = { saving: false, message: 'Erro ao salvar: ' + error.message, type: 'error' };
+            } finally {
+                setTimeout(() => { if (!this.status.saving) this.status.message = ''; }, 3000);
+            }
+        }
+    }" @vue:mounted="init">
+        <textarea 
+            v-model="code" 
+            @input="debounceSave" 
+            placeholder="Cole seu código aqui..."
+        ></textarea>
+        
+        <div class="progress-bar" v-show="progressWidth > 0">
+            <div class="progress-fill" :class="{ animating: progressAnimating }" :style="{ width: progressWidth + '%' }"></div>
+        </div>
+        
+        <div v-if="status.saving || status.message" :class="['status', status.type]">
+            {{ status.saving ? 'Salvando...' : status.message }}
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            PetiteVue.createApp().mount();
+        })();
+    </script>
+</body>
+</html>
